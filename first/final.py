@@ -765,3 +765,4 @@ for ax, cuisine in zip(axes.flatten(), top_10_rated_cuisines.index):
 
 plt.tight_layout()
 plt.show()
+
