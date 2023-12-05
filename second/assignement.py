@@ -5,6 +5,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
@@ -554,9 +555,9 @@ xgb_params = {
 
 watchlist = [(dtrain, 'train'), (dtest, 'test')]
 
-model = xgb.train(xgb_params, dtrain,
-                  num_boost_round=100,
-                  evals=watchlist, verbose_eval=10)
+# model = xgb.train(xgb_params, dtrain,
+#                   num_boost_round=100,
+#                   evals=watchlist, verbose_eval=10)
 
 """ 
 [0]     train-auc:0.98661       test-auc:0.81255
@@ -585,9 +586,9 @@ xgb_params = {
     'silent': 1
 }
 
-model = xgb.train(xgb_params, dtrain,
-                  num_boost_round=500, verbose_eval=10,
-                  evals=watchlist)
+# model = xgb.train(xgb_params, dtrain,
+#                   num_boost_round=500, verbose_eval=10,
+#                   evals=watchlist)
 
 """ 
 [0]     train-auc:0.98661       test-auc:0.81255
@@ -642,3 +643,131 @@ model = xgb.train(xgb_params, dtrain,
 [490]   train-auc:1.00000       test-auc:0.91568
 [499]   train-auc:1.00000       test-auc:0.91551
 """
+# Random Forest
+
+""" 
+One model individually may be wrong,
+but if we combine the output of multiple models into one, the chance of an 
+incorrect answer is smaller. This concept is called ensemble learning, and
+a combination of models is called an ensemble.
+
+For this to work, the models need to be different. If we train the same decision
+
+tree model 10 times, they will all predict the same output, so it's not useful at
+all.
+
+The easiest way to have different models is to train each tree on a different subset of
+features. For example, suppose we have three features: assets, debts, and price. We
+can train three models:
+- The first will use assets and debts.
+- The second will use debts and price.
+- The last one will use assets and price.
+
+
+With this approach, we'll have different trees, each making its own decisions.
+But when we put their predictions together, their mistakes average out, and
+combined, they have more predictive power.
+
+This way of putting together multiple decision trees into an ensemble is called a
+random forest. To train a random forest, we can do this:
+
+- Train N independent decision tree models.
+- For each model, select a random subset of features, and use only them for
+training.
+- When predicting, combine the output of N models into one.
+
+Scikit-learn contains an implementation of a random forest, so we can use it for
+solving our problem.
+
+from sklearn.ensemble import RandomForestClassifier
+"""
+
+
+""" 
+the first thing we need to specify is the number of trees we
+want to have in the ensemble. We do it with the n_estimators parameter:
+"""
+
+rf = RandomForestClassifier(n_estimators=10)
+rf.fit(X_train, Y_train)
+
+# after training, let's evaluate the performance
+
+y_pred = rf.predict_proba(X_test)[:, 1]
+print(roc_auc_score(Y_test, y_pred)) # 0.8224780000900791 ie 82%
+
+# Every time we retrain the model, the score changes
+
+""" 
+The reason for this is randomization: to train a tree, we randomly select a subset
+of features. To make the results consistent, we need to fix the seed for the 
+randomnumber generator by assigning some value to the random_state parameter:
+"""
+
+rf = RandomForestClassifier(n_estimators=10, random_state=3)
+rf.fit(X_train, Y_train)
+
+# Now we can evaluate it:
+
+y_pred = rf.predict_proba(X_test)[:, 1]
+print(roc_auc_score(Y_test, y_pred)) # 0.8307942199866414
+
+""" 
+The number of trees in the ensemble is an important parameter, and it influences
+the performance of the model. Usually, a model with more trees is better than a
+model with fewer trees. On the other hand, adding too many trees is not always
+helpful.
+To see how many trees we need, we can iterate over different values for 
+n_estimators and see its effect on AUC:
+"""
+
+aucs = []
+
+# for i in range(10, 201, 10):
+#     rf = RandomForestClassifier(n_estimators=i, random_state=3)
+#     rf.fit(X_train, Y_train)
+#     y_pred = rf.predict_proba(X_test)[:, 1]
+#     auc = roc_auc_score(Y_test, y_pred)
+#     print('%s -> %.3f' % (i, auc))
+#     aucs.append(auc)
+    
+# plt.plot(range(10, 201, 10), aucs)
+# plt.show()
+
+""" 
+10 -> 0.831
+20 -> 0.849
+30 -> 0.863
+40 -> 0.872
+50 -> 0.877
+60 -> 0.876
+70 -> 0.877
+80 -> 0.878
+90 -> 0.881
+100 -> 0.881
+110 -> 0.882
+120 -> 0.883
+130 -> 0.884
+140 -> 0.884
+150 -> 0.885
+160 -> 0.885
+170 -> 0.886
+180 -> 0.887
+190 -> 0.887
+200 -> 0.886
+"""
+
+
+# Naive Bayes
+
+from sklearn.naive_bayes import GaussianNB
+
+# Build a Gaussian Classifier
+nb = GaussianNB()
+
+# Model training
+nb.fit(X_train, Y_train)
+
+# Predict Output
+y_pred = nb.predict(X_test)
+print(roc_auc_score(Y_test, y_pred))# 0.48454778841371615
